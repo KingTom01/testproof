@@ -16,31 +16,38 @@ async function render() {
   );
 }
 
-test("server-renders the TestProof product surface", async () => {
+test("server-renders the multilingual TestProof product surface", async () => {
   const response = await render();
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
 
   const html = await response.text();
+  assert.match(html, /<html lang="zh-CN"/);
   assert.match(html, /<title>TestProof/);
-  assert.match(html, /Bug reports people/);
-  assert.match(html, /Build the evidence/);
-  assert.match(html, /Markdown preview/);
-  assert.match(html, /Your evidence stays on this device/);
+  assert.match(html, /让开发者真正能复现的/);
+  assert.match(html, /整理测试证据/);
+  assert.match(html, /简体中文/);
+  assert.match(html, /繁體中文/);
+  assert.match(html, /English/);
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton|Your site is taking shape/);
 });
 
-test("ships product metadata and removes the disposable starter", async () => {
-  const [page, layout, packageJson] = await Promise.all([
+test("ships localized report generation and product metadata", async () => {
+  const [page, i18n, layout, packageJson] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/i18n.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../package.json", import.meta.url), "utf8"),
   ]);
 
   assert.match(page, /createMarkdown/);
+  assert.match(page, /testproof-language/);
   assert.match(page, /navigator\.clipboard/);
   assert.match(page, /URL\.createObjectURL/);
-  assert.match(layout, /TestProof — Bug reports people can reproduce/);
+  assert.match(i18n, /"zh-CN"/);
+  assert.match(i18n, /"zh-TW"/);
+  assert.match(i18n, /Generated locally with TestProof/);
+  assert.match(layout, /TestProof/);
   assert.match(layout, /\/og\.png/);
   assert.doesNotMatch(packageJson, /react-loading-skeleton/);
   await access(new URL("../public/og.png", import.meta.url));

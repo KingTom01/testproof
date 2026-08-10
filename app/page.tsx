@@ -1,6 +1,15 @@
 "use client";
 
-import { ChangeEvent, DragEvent, useMemo, useRef, useState } from "react";
+import { ChangeEvent, DragEvent, useEffect, useMemo, useRef, useState } from "react";
+import {
+  COPY,
+  EMPTY_REPORT,
+  LANGUAGES,
+  SAMPLES,
+  type Language,
+  type Report,
+  type Severity,
+} from "./i18n";
 
 type Evidence = {
   id: string;
@@ -9,71 +18,44 @@ type Evidence = {
   url: string;
 };
 
-type Report = {
-  title: string;
-  severity: string;
-  environment: string;
-  steps: string;
-  expected: string;
-  actual: string;
-};
-
-const EMPTY_REPORT: Report = {
-  title: "",
-  severity: "Medium",
-  environment: "",
-  steps: "",
-  expected: "",
-  actual: "",
-};
-
-const SAMPLE_REPORT: Report = {
-  title: "Login button remains disabled with valid credentials",
-  severity: "High",
-  environment: "Chrome 140 · Windows 11 · UAT build 1.2.0",
-  steps:
-    "Open the login page\nEnter a valid email address\nEnter the correct password\nSelect Login",
-  expected: "The user is authenticated and redirected to the dashboard.",
-  actual: "The Login button remains disabled and no validation message appears.",
-};
-
 function cleanInline(value: string) {
   return value.trim().replace(/[\r\n]+/g, " ");
 }
 
-function createMarkdown(report: Report, evidence: Evidence[]) {
+function createMarkdown(report: Report, evidence: Evidence[], language: Language) {
+  const t = COPY[language];
   const steps = report.steps
     .split("\n")
     .map((step) => step.trim())
     .filter(Boolean);
-  const title = cleanInline(report.title) || "Untitled bug report";
+  const title = cleanInline(report.title) || t.markdown.untitled;
 
   return [
     `# ${title}`,
     "",
-    `> **Severity:** ${report.severity}`,
+    `> **${t.markdown.severity}:** ${t.severityLabels[report.severity]}`,
     "",
-    "## Environment",
-    report.environment.trim() || "_Not provided_",
+    `## ${t.markdown.environment}`,
+    report.environment.trim() || t.markdown.notProvided,
     "",
-    "## Steps to reproduce",
+    `## ${t.markdown.steps}`,
     steps.length
       ? steps.map((step, index) => `${index + 1}. ${step}`).join("\n")
-      : "_No reproduction steps provided_",
+      : t.markdown.noSteps,
     "",
-    "## Expected result",
-    report.expected.trim() || "_Not provided_",
+    `## ${t.markdown.expected}`,
+    report.expected.trim() || t.markdown.notProvided,
     "",
-    "## Actual result",
-    report.actual.trim() || "_Not provided_",
+    `## ${t.markdown.actual}`,
+    report.actual.trim() || t.markdown.notProvided,
     "",
-    "## Evidence",
+    `## ${t.markdown.evidence}`,
     evidence.length
       ? evidence.map((item) => `- ${item.name}`).join("\n")
-      : "_No screenshots attached_",
+      : t.markdown.noEvidence,
     "",
     "---",
-    "Generated locally with TestProof.",
+    t.markdown.generated,
   ].join("\n");
 }
 
@@ -82,14 +64,31 @@ function formatBytes(bytes: number) {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
+function isLanguage(value: string | null): value is Language {
+  return value === "zh-CN" || value === "zh-TW" || value === "en";
+}
+
 export default function Home() {
+  const [language, setLanguage] = useState<Language>("zh-CN");
   const [report, setReport] = useState<Report>(EMPTY_REPORT);
   const [evidence, setEvidence] = useState<Evidence[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [notice, setNotice] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const t = COPY[language];
 
-  const markdown = useMemo(() => createMarkdown(report, evidence), [report, evidence]);
+  useEffect(() => {
+    const savedLanguage = window.localStorage.getItem("testproof-language");
+    if (isLanguage(savedLanguage)) {
+      setLanguage(savedLanguage);
+      document.documentElement.lang = savedLanguage;
+    }
+  }, []);
+
+  const markdown = useMemo(
+    () => createMarkdown(report, evidence, language),
+    [report, evidence, language],
+  );
   const completed = [
     report.title,
     report.environment,
@@ -98,6 +97,13 @@ export default function Home() {
     report.actual,
   ].filter((value) => value.trim()).length;
 
+  function changeLanguage(nextLanguage: Language) {
+    setLanguage(nextLanguage);
+    setNotice("");
+    window.localStorage.setItem("testproof-language", nextLanguage);
+    document.documentElement.lang = nextLanguage;
+  }
+
   function updateField(field: keyof Report, value: string) {
     setReport((current) => ({ ...current, [field]: value }));
   }
@@ -105,7 +111,7 @@ export default function Home() {
   function addFiles(files: FileList | File[]) {
     const images = Array.from(files).filter((file) => file.type.startsWith("image/"));
     if (!images.length) {
-      setNotice("Choose PNG, JPG, GIF, or WebP screenshots.");
+      setNotice(t.invalidFiles);
       return;
     }
     setEvidence((current) => [
@@ -117,7 +123,7 @@ export default function Home() {
         url: URL.createObjectURL(file),
       })),
     ]);
-    setNotice(`${images.length} screenshot${images.length > 1 ? "s" : ""} added locally.`);
+    setNotice(t.filesAdded(images.length));
   }
 
   function handleFiles(event: ChangeEvent<HTMLInputElement>) {
@@ -152,9 +158,9 @@ export default function Home() {
   async function copyMarkdown() {
     try {
       await navigator.clipboard.writeText(markdown);
-      setNotice("Markdown copied. Paste it into your issue tracker.");
+      setNotice(t.copied);
     } catch {
-      setNotice("Copy was blocked. Select the preview text and copy it manually.");
+      setNotice(t.copyBlocked);
     }
   }
 
@@ -162,118 +168,134 @@ export default function Home() {
     const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
     const link = document.createElement("a");
     const safeName = (report.title || "testproof-report")
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
+      .trim()
+      .replace(/[<>:"/\\|?*\u0000-\u001f]+/g, "-")
+      .replace(/\s+/g, "-")
       .replace(/^-|-$/g, "")
       .slice(0, 60);
     link.href = URL.createObjectURL(blob);
     link.download = `${safeName || "testproof-report"}.md`;
     link.click();
     URL.revokeObjectURL(link.href);
-    setNotice("Markdown report downloaded.");
+    setNotice(t.downloaded);
   }
 
   function resetReport() {
     evidence.forEach((item) => URL.revokeObjectURL(item.url));
     setEvidence([]);
     setReport(EMPTY_REPORT);
-    setNotice("Started a fresh report.");
+    setNotice(t.resetDone);
   }
 
   return (
-    <main>
+    <main data-language={language}>
       <header className="topbar">
-        <a className="brand" href="#top" aria-label="TestProof home">
-          <span className="brand-mark">T<span>✓</span></span>
+        <a className="brand" href="#top" aria-label={t.home}>
+          <span className="brand-mark">T<span aria-hidden="true">✓</span></span>
           <span>TestProof</span>
         </a>
-        <div className="privacy-note"><span className="status-dot" /> Your evidence stays on this device</div>
+        <div className="topbar-actions">
+          <div className="language-switch" role="group" aria-label="Language / 语言">
+            {LANGUAGES.map((item) => (
+              <button
+                key={item.code}
+                type="button"
+                className={language === item.code ? "is-active" : ""}
+                aria-pressed={language === item.code}
+                aria-label={item.fullLabel}
+                onClick={() => changeLanguage(item.code)}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+          <div className="privacy-note"><span className="status-dot" /> {t.privacy}</div>
+        </div>
       </header>
 
       <section className="hero" id="top">
         <div>
-          <p className="eyebrow">Privacy-first QA evidence</p>
-          <h1>Bug reports people<br />can reproduce.</h1>
-          <p className="hero-copy">
-            Turn test steps and screenshots into a clean, developer-ready report.
-            No account. No upload. No guesswork.
-          </p>
+          <p className="eyebrow">{t.eyebrow}</p>
+          <h1>{t.heroLine1}<br />{t.heroLine2}</h1>
+          <p className="hero-copy">{t.heroCopy}</p>
         </div>
-        <aside className="hero-card" aria-label="Report quality checklist">
-          <span className="card-kicker">A useful report has</span>
-          <div><b>01</b><span>Clear reproduction steps</span></div>
-          <div><b>02</b><span>Expected vs. actual</span></div>
-          <div><b>03</b><span>Ordered visual evidence</span></div>
+        <aside className="hero-card" aria-label={t.checklistLabel}>
+          <span className="card-kicker">{t.checklistTitle}</span>
+          {t.checklist.map((item, index) => (
+            <div key={item}><b>0{index + 1}</b><span>{item}</span></div>
+          ))}
         </aside>
       </section>
 
-      <section className="workspace" aria-label="Bug report builder">
+      <section className="workspace" aria-label={t.composeTitle}>
         <div className="builder-panel">
           <div className="panel-heading">
             <div>
-              <p className="step-label">01 / Compose</p>
-              <h2>Build the evidence</h2>
+              <p className="step-label">{t.composeStep}</p>
+              <h2>{t.composeTitle}</h2>
             </div>
-            <button className="text-button" type="button" onClick={() => setReport(SAMPLE_REPORT)}>
-              Use example
+            <button className="text-button" type="button" onClick={() => setReport(SAMPLES[language])}>
+              {t.useExample}
             </button>
           </div>
 
           <div className="field-grid">
             <label className="field field-wide">
-              <span>Bug summary <em>Required</em></span>
+              <span>{t.bugSummary} <em>{t.required}</em></span>
               <input
                 value={report.title}
                 onChange={(event) => updateField("title", event.target.value)}
-                placeholder="What failed, and under what condition?"
+                placeholder={t.bugPlaceholder}
               />
             </label>
 
             <label className="field severity-field">
-              <span>Severity</span>
-              <select value={report.severity} onChange={(event) => updateField("severity", event.target.value)}>
-                <option>Low</option>
-                <option>Medium</option>
-                <option>High</option>
-                <option>Critical</option>
+              <span>{t.severity}</span>
+              <select
+                value={report.severity}
+                onChange={(event) => updateField("severity", event.target.value as Severity)}
+              >
+                {(Object.keys(t.severityLabels) as Severity[]).map((severity) => (
+                  <option key={severity} value={severity}>{t.severityLabels[severity]}</option>
+                ))}
               </select>
             </label>
 
             <label className="field environment-field">
-              <span>Environment</span>
+              <span>{t.environment}</span>
               <input
                 value={report.environment}
                 onChange={(event) => updateField("environment", event.target.value)}
-                placeholder="Browser · OS · build"
+                placeholder={t.environmentPlaceholder}
               />
             </label>
 
             <label className="field field-wide">
-              <span>Steps to reproduce <em>One step per line</em></span>
+              <span>{t.steps} <em>{t.onePerLine}</em></span>
               <textarea
                 value={report.steps}
                 onChange={(event) => updateField("steps", event.target.value)}
-                placeholder={"Open the login page\nEnter valid credentials\nSelect Login"}
+                placeholder={t.stepsPlaceholder}
                 rows={5}
               />
             </label>
 
             <label className="field result-field expected-field">
-              <span>Expected result</span>
+              <span>{t.expected}</span>
               <textarea
                 value={report.expected}
                 onChange={(event) => updateField("expected", event.target.value)}
-                placeholder="What should have happened?"
+                placeholder={t.expectedPlaceholder}
                 rows={4}
               />
             </label>
 
             <label className="field result-field actual-field">
-              <span>Actual result</span>
+              <span>{t.actual}</span>
               <textarea
                 value={report.actual}
                 onChange={(event) => updateField("actual", event.target.value)}
-                placeholder="What happened instead?"
+                placeholder={t.actualPlaceholder}
                 rows={4}
               />
             </label>
@@ -281,10 +303,10 @@ export default function Home() {
 
           <div className="evidence-heading">
             <div>
-              <p className="step-label">02 / Attach</p>
-              <h3>Visual evidence</h3>
+              <p className="step-label">{t.attachStep}</p>
+              <h3>{t.evidenceTitle}</h3>
             </div>
-            <span>{evidence.length} file{evidence.length === 1 ? "" : "s"}</span>
+            <span>{t.fileCount(evidence.length)}</span>
           </div>
 
           <div
@@ -301,24 +323,24 @@ export default function Home() {
             tabIndex={0}
           >
             <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handleFiles} />
-            <span className="upload-mark">＋</span>
-            <b>Drop screenshots here</b>
-            <small>or choose images · processed only in your browser</small>
+            <span className="upload-mark" aria-hidden="true">+</span>
+            <b>{t.dropTitle}</b>
+            <small>{t.dropHelp}</small>
           </div>
 
           {evidence.length > 0 && (
-            <div className="evidence-list" aria-label="Attached screenshots">
+            <div className="evidence-list" aria-label={t.attachedScreenshots}>
               {evidence.map((item, index) => (
                 <article className="evidence-item" key={item.id}>
-                  <img src={item.url} alt={`Evidence ${index + 1}: ${item.name}`} />
+                  <img src={item.url} alt={t.evidenceAlt(index + 1, item.name)} />
                   <div className="evidence-meta">
                     <b><span>{String(index + 1).padStart(2, "0")}</span>{item.name}</b>
                     <small>{formatBytes(item.size)}</small>
                   </div>
                   <div className="evidence-actions">
-                    <button type="button" onClick={() => moveEvidence(index, -1)} disabled={index === 0} aria-label={`Move ${item.name} up`}>↑</button>
-                    <button type="button" onClick={() => moveEvidence(index, 1)} disabled={index === evidence.length - 1} aria-label={`Move ${item.name} down`}>↓</button>
-                    <button className="remove-button" type="button" onClick={() => removeEvidence(item.id)} aria-label={`Remove ${item.name}`}>×</button>
+                    <button type="button" onClick={() => moveEvidence(index, -1)} disabled={index === 0} aria-label={t.moveUp(item.name)}>↑</button>
+                    <button type="button" onClick={() => moveEvidence(index, 1)} disabled={index === evidence.length - 1} aria-label={t.moveDown(item.name)}>↓</button>
+                    <button className="remove-button" type="button" onClick={() => removeEvidence(item.id)} aria-label={t.remove(item.name)}>×</button>
                   </div>
                 </article>
               ))}
@@ -330,28 +352,28 @@ export default function Home() {
           <div className="preview-sticky">
             <div className="panel-heading preview-heading">
               <div>
-                <p className="step-label">03 / Export</p>
-                <h2>Markdown preview</h2>
+                <p className="step-label">{t.exportStep}</p>
+                <h2>{t.previewTitle}</h2>
               </div>
-              <span className="completion">{completed}/5 complete</span>
+              <span className="completion">{t.complete(completed)}</span>
             </div>
             <div className="preview-window">
               <div className="window-bar"><span /><span /><span /><b>bug-report.md</b></div>
-              <pre aria-label="Generated Markdown preview">{markdown}</pre>
+              <pre aria-label={t.previewLabel}>{markdown}</pre>
             </div>
             <div className="export-actions">
-              <button className="primary-button" type="button" onClick={copyMarkdown}>Copy Markdown <span>↗</span></button>
-              <button className="secondary-button" type="button" onClick={downloadMarkdown}>Download .md</button>
+              <button className="primary-button" type="button" onClick={copyMarkdown}>{t.copy} <span aria-hidden="true">↗</span></button>
+              <button className="secondary-button" type="button" onClick={downloadMarkdown}>{t.download}</button>
             </div>
-            <button className="reset-button" type="button" onClick={resetReport}>Clear report and start again</button>
-            <p className="notice" aria-live="polite">{notice || "Ready when your evidence is."}</p>
+            <button className="reset-button" type="button" onClick={resetReport}>{t.reset}</button>
+            <p className="notice" aria-live="polite">{notice || t.ready}</p>
           </div>
         </aside>
       </section>
 
       <footer>
-        <span>TestProof · Open source QA utility</span>
-        <span>Local by design. Useful by default.</span>
+        <span>{t.footerProduct}</span>
+        <span>{t.footerTagline}</span>
       </footer>
     </main>
   );

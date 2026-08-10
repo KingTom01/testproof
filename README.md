@@ -10,6 +10,7 @@ there is no account, upload, analytics service, or backend.
 - Drag-and-drop screenshot previews with ordering controls
 - Live Markdown preview
 - One-click copy and `.md` download
+- Simplified Chinese, Traditional Chinese, and English interface and report output
 - Responsive, keyboard-accessible interface
 - Local-only image processing
 

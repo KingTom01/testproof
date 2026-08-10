@@ -38,6 +38,11 @@ main { min-height: 100vh; }
 .brand { align-items: center; color: var(--ink); display: flex; font-size: 21px; font-weight: 760; gap: 11px; text-decoration: none; }
 .brand-mark { align-items: center; background: var(--ink); color: white; display: inline-flex; height: 31px; justify-content: center; letter-spacing: -3px; width: 31px; }
 .brand-mark span { color: var(--mint); font-size: 11px; margin: 10px 0 0 -1px; }
+.topbar-actions { align-items: center; display: flex; gap: 22px; }
+.language-switch { border: 1px solid var(--line); display: flex; padding: 3px; }
+.language-switch button { background: transparent; border: 0; color: var(--muted); cursor: pointer; font-size: 11px; font-weight: 650; min-height: 28px; padding: 5px 10px; }
+.language-switch button:hover { color: var(--ink); }
+.language-switch button.is-active { background: var(--ink); color: white; }
 .privacy-note { align-items: center; color: var(--muted); display: flex; font-size: 13px; gap: 8px; }
 .status-dot { background: #33a06f; border-radius: 50%; box-shadow: 0 0 0 4px rgba(51, 160, 111, .12); height: 7px; width: 7px; }
 
@@ -52,6 +57,7 @@ main { min-height: 100vh; }
 }
 .eyebrow, .step-label { color: var(--coral); font-family: var(--font-geist-mono), monospace; font-size: 11px; font-weight: 700; letter-spacing: .14em; margin: 0 0 18px; text-transform: uppercase; }
 h1 { font-size: clamp(56px, 7.8vw, 116px); font-weight: 700; letter-spacing: -.075em; line-height: .86; margin: 0; max-width: 1020px; }
+main[data-language^="zh"] h1 { font-size: clamp(48px, 6.2vw, 92px); letter-spacing: -.055em; line-height: 1; }
 .hero-copy { color: var(--muted); font-size: clamp(16px, 1.45vw, 21px); line-height: 1.55; margin: 32px 0 0; max-width: 670px; }
 .hero-card { background: var(--dark); color: white; padding: 26px 28px; transform: rotate(1.3deg); }
 .card-kicker { color: var(--mint); display: block; font-family: var(--font-geist-mono), monospace; font-size: 10px; letter-spacing: .13em; margin-bottom: 16px; text-transform: uppercase; }
@@ -149,7 +155,11 @@ footer { color: var(--muted); display: flex; font-size: 11px; justify-content: s
 @media (max-width: 620px) {
   .privacy-note { font-size: 0; }
   .privacy-note .status-dot { display: block; }
+  .topbar { align-items: flex-start; }
+  .topbar-actions { gap: 9px; }
+  .language-switch button { min-height: 26px; padding: 4px 7px; }
   h1 { font-size: clamp(50px, 16vw, 78px); }
+  main[data-language^="zh"] h1 { font-size: clamp(42px, 12vw, 66px); }
   .hero { padding-top: 54px; }
   .builder-panel, .preview-panel { padding: 34px 20px; }
   .field-grid { grid-template-columns: 1fr; }
