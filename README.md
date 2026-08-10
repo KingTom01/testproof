@@ -9,7 +9,7 @@ requiring an account or uploading report data to a server.
 
 ## Live demo
 
-Try TestProof at **[testproof-qa.saturday-s-lucky.chatgpt.site](https://testproof-qa.saturday-s-lucky.chatgpt.site)**.
+Try TestProof at **[kingtom01.github.io/testproof](https://kingtom01.github.io/testproof/)**.
 
 The hosted app uses the same local-first behavior: report fields and screenshots
 remain in the current browser session and are not uploaded by TestProof.
