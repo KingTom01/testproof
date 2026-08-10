@@ -1,13 +1,26 @@
 export type Language = "zh-CN" | "zh-TW" | "en";
 export type Severity = "low" | "medium" | "high" | "critical";
+export type DefectType = "functional" | "ui" | "data" | "permission" | "performance" | "integration";
 
 export type Report = {
   title: string;
   severity: Severity;
-  environment: string;
+  defectType: DefectType;
+  identifiedEnvironment: string;
+  description: string;
+  preconditions: string;
+  operatingSystem: string;
+  deviceModel: string;
+  pageTested: string;
+  languagesTested: string;
+  browserVersion: string;
+  role: string;
   steps: string;
   expected: string;
   actual: string;
+  impact: string;
+  developerChecking: string;
+  remark: string;
 };
 
 export const LANGUAGES: Array<{ code: Language; label: string; fullLabel: string }> = [
@@ -19,38 +32,119 @@ export const LANGUAGES: Array<{ code: Language; label: string; fullLabel: string
 export const EMPTY_REPORT: Report = {
   title: "",
   severity: "medium",
-  environment: "",
+  defectType: "functional",
+  identifiedEnvironment: "SIT",
+  description: "",
+  preconditions: "",
+  operatingSystem: "",
+  deviceModel: "",
+  pageTested: "",
+  languagesTested: "",
+  browserVersion: "",
+  role: "",
   steps: "",
   expected: "",
   actual: "",
+  impact: "",
+  developerChecking: "",
+  remark: "",
 };
 
 export const SAMPLES: Record<Language, Report> = {
   "zh-CN": {
-    title: "输入有效账号密码后，登录按钮仍处于禁用状态",
+    title: "[Web Portal][登录] 输入有效账号密码后，登录按钮仍处于禁用状态",
     severity: "high",
-    environment: "Chrome 140 · Windows 11 · UAT 版本 1.2.0",
+    defectType: "functional",
+    identifiedEnvironment: "UAT",
+    description: "用户输入有效账号和密码后，登录按钮仍无法点击，导致用户无法进入系统。",
+    preconditions: "已准备一个有效且未锁定的测试账号。",
+    operatingSystem: "Microsoft Windows 11",
+    deviceModel: "PC",
+    pageTested: "Web Portal > Login",
+    languagesTested: "SC & TC & EN",
+    browserVersion: "Chrome 140 / Edge 140",
+    role: "Registered User",
     steps: "打开登录页面\n输入有效的电子邮箱\n输入正确密码\n点击登录",
     expected: "用户成功登录并跳转至控制面板。",
     actual: "登录按钮仍处于禁用状态，页面也没有显示验证提示。",
+    impact: "所有使用账号密码登录的用户均可能无法进入系统。",
+    developerChecking: "请检查前端表单状态更新及登录按钮 disabled 条件。",
+    remark: "UAT 验证时稳定复现。测试数据请勿写入报告。",
   },
   "zh-TW": {
-    title: "輸入有效帳號密碼後，登入按鈕仍處於停用狀態",
+    title: "[Web Portal][Login] 輸入有效帳號密碼後，登入按鈕仍處於停用狀態",
     severity: "high",
-    environment: "Chrome 140 · Windows 11 · UAT 版本 1.2.0",
+    defectType: "functional",
+    identifiedEnvironment: "UAT",
+    description: "使用者輸入有效帳號和密碼後，登入按鈕仍無法點擊，導致使用者無法進入系統。",
+    preconditions: "已準備一個有效且未鎖定的測試帳號。",
+    operatingSystem: "Microsoft Windows 11",
+    deviceModel: "PC",
+    pageTested: "Web Portal > Login",
+    languagesTested: "TC & SC & EN",
+    browserVersion: "Chrome 140 / Edge 140",
+    role: "Registered User",
     steps: "開啟登入頁面\n輸入有效的電子郵件\n輸入正確密碼\n點擊登入",
     expected: "使用者成功登入並跳轉至控制台。",
     actual: "登入按鈕仍處於停用狀態，頁面也沒有顯示驗證提示。",
+    impact: "所有使用帳號密碼登入的使用者均可能無法進入系統。",
+    developerChecking: "請檢查前端表單狀態更新及登入按鈕 disabled 條件。",
+    remark: "UAT 驗證時穩定重現。測試資料請勿寫入報告。",
   },
   en: {
     title: "Login button remains disabled with valid credentials",
     severity: "high",
-    environment: "Chrome 140 · Windows 11 · UAT build 1.2.0",
+    defectType: "functional",
+    identifiedEnvironment: "UAT",
+    description: "The Login button remains disabled after valid credentials are entered, preventing the user from accessing the system.",
+    preconditions: "A valid, unlocked test account is available.",
+    operatingSystem: "Microsoft Windows 11",
+    deviceModel: "PC",
+    pageTested: "Web Portal > Login",
+    languagesTested: "EN & TC & SC",
+    browserVersion: "Chrome 140 / Edge 140",
+    role: "Registered User",
     steps: "Open the login page\nEnter a valid email address\nEnter the correct password\nSelect Login",
     expected: "The user is authenticated and redirected to the dashboard.",
     actual: "The Login button remains disabled and no validation message appears.",
+    impact: "Users who sign in with credentials may be unable to access the system.",
+    developerChecking: "Check the client-side form state and the disabled condition for the Login button.",
+    remark: "Consistently reproduced in UAT. Do not include test credentials in the report.",
   },
 };
+
+export const JIRA_COPY = {
+  "zh-CN": {
+    basic: "关键详细信息", description: "Description / 描述", defectType: "缺陷类型", identifiedEnvironment: "发现环境",
+    defectTypes: { functional: "功能问题", ui: "界面问题", data: "数据问题", permission: "权限问题", performance: "性能问题", integration: "集成问题" },
+    descriptionPlaceholder: "说明业务背景、触发条件与问题现象。", preconditions: "前置条件", preconditionsPlaceholder: "执行步骤前需要满足什么条件？",
+    environmentDetails: "Environment / 测试环境", operatingSystem: "操作系统", deviceModel: "测试设备及型号", pageTested: "测试页面", languagesTested: "测试语言 (EN/TC/SC)", browserVersion: "浏览器版本", role: "测试角色",
+    journey: "Bug identification journey / 问题重现步骤", actual: "Actual result / 实际结果", expected: "Expected result / 预期结果",
+    impact: "Impact / 影响范围", developerChecking: "Developer Checking Point / 开发检查点", remark: "Remark / 备注",
+    impactPlaceholder: "哪些用户、流程或数据会受到影响？", developerPlaceholder: "建议开发优先检查的逻辑、接口或数据。", remarkPlaceholder: "补充复现率、范围或其他说明。",
+    preview: "Jira 缺陷单预览", draft: "BUG DRAFT", printPdf: "打印 / 另存为 PDF", evidence: "Evidence / 截图证据", notProvided: "未提供", noEvidence: "未添加截图", step: "Step", generated: "由 TestProof 在本地生成。",
+  },
+  "zh-TW": {
+    basic: "關鍵詳細資訊", description: "Description / 描述", defectType: "Defect Type", identifiedEnvironment: "Defect Identified Environment",
+    defectTypes: { functional: "Functional Issue", ui: "UI Issue", data: "Data Issue", permission: "Permission Issue", performance: "Performance Issue", integration: "Integration Issue" },
+    descriptionPlaceholder: "說明業務背景、觸發條件與問題現象。", preconditions: "Preconditions / 前置條件", preconditionsPlaceholder: "執行步驟前需要滿足甚麼條件？",
+    environmentDetails: "Environment / 測試環境", operatingSystem: "Operation system", deviceModel: "Testing device & model", pageTested: "UI page tested", languagesTested: "Language tested (EN/TC/SC)", browserVersion: "browser version", role: "Testing role",
+    journey: "Bug identification journey / 問題重現步驟", actual: "Actual result / 實際結果", expected: "Expected result / 預期結果",
+    impact: "Impact / 影響範圍", developerChecking: "Developer Checking Point / 開發檢查點", remark: "Remark / 備註",
+    impactPlaceholder: "哪些使用者、流程或資料會受到影響？", developerPlaceholder: "建議開發優先檢查的邏輯、介面或資料。", remarkPlaceholder: "補充重現率、範圍或其他說明。",
+    preview: "Jira 缺陷單預覽", draft: "BUG DRAFT", printPdf: "列印 / 另存為 PDF", evidence: "Evidence / 截圖證據", notProvided: "未提供", noEvidence: "未新增截圖", step: "Step", generated: "由 TestProof 在本機產生。",
+  },
+  en: {
+    basic: "Key details", description: "Description", defectType: "Defect Type", identifiedEnvironment: "Identified Environment",
+    defectTypes: { functional: "Functional Issue", ui: "UI Issue", data: "Data Issue", permission: "Permission Issue", performance: "Performance Issue", integration: "Integration Issue" },
+    descriptionPlaceholder: "Describe the context, trigger, and observed problem.", preconditions: "Preconditions", preconditionsPlaceholder: "What must be true before the steps are performed?",
+    environmentDetails: "Environment", operatingSystem: "Operation system", deviceModel: "Testing device & model", pageTested: "UI page tested", languagesTested: "Language tested (EN/TC/SC)", browserVersion: "Browser version", role: "Testing role",
+    journey: "Bug identification journey", actual: "Actual result", expected: "Expected result",
+    impact: "Impact", developerChecking: "Developer Checking Point", remark: "Remark",
+    impactPlaceholder: "Which users, workflows, or data are affected?", developerPlaceholder: "Suggest the logic, API, or data that should be checked first.", remarkPlaceholder: "Add reproducibility, scope, or other notes.",
+    preview: "Jira bug preview", draft: "BUG DRAFT", printPdf: "Print / Save PDF", evidence: "Evidence", notProvided: "Not provided", noEvidence: "No screenshots attached", step: "Step", generated: "Generated locally with TestProof.",
+  },
+} as const;
 
 export const COPY = {
   "zh-CN": {

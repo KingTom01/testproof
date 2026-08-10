@@ -4,8 +4,10 @@ import { ChangeEvent, DragEvent, useEffect, useMemo, useRef, useState } from "re
 import {
   COPY,
   EMPTY_REPORT,
+  JIRA_COPY,
   LANGUAGES,
   SAMPLES,
+  type DefectType,
   type Language,
   type Report,
   type Severity,
@@ -24,6 +26,7 @@ function cleanInline(value: string) {
 
 function createMarkdown(report: Report, evidence: Evidence[], language: Language) {
   const t = COPY[language];
+  const j = JIRA_COPY[language];
   const steps = report.steps
     .split("\n")
     .map((step) => step.trim())
@@ -33,29 +36,53 @@ function createMarkdown(report: Report, evidence: Evidence[], language: Language
   return [
     `# ${title}`,
     "",
-    `> **${t.markdown.severity}:** ${t.severityLabels[report.severity]}`,
+    `| ${j.defectType} | ${j.defectTypes[report.defectType]} |`,
+    `| --- | --- |`,
+    `| ${j.identifiedEnvironment} | ${report.identifiedEnvironment || j.notProvided} |`,
+    `| ${t.markdown.severity} | ${t.severityLabels[report.severity]} |`,
     "",
-    `## ${t.markdown.environment}`,
-    report.environment.trim() || t.markdown.notProvided,
+    `## ${j.description}`,
+    report.description.trim() || t.markdown.notProvided,
     "",
-    `## ${t.markdown.steps}`,
+    `## ${j.environmentDetails}`,
+    `| ${j.operatingSystem} | ${report.operatingSystem || j.notProvided} |`,
+    `| --- | --- |`,
+    `| ${j.deviceModel} | ${report.deviceModel || j.notProvided} |`,
+    `| ${j.pageTested} | ${report.pageTested || j.notProvided} |`,
+    `| ${j.languagesTested} | ${report.languagesTested || j.notProvided} |`,
+    `| ${j.browserVersion} | ${report.browserVersion || j.notProvided} |`,
+    `| ${j.role} | ${report.role || j.notProvided} |`,
+    "",
+    `## ${j.preconditions}`,
+    report.preconditions.trim() || t.markdown.notProvided,
+    "",
+    `## ${j.journey}`,
     steps.length
-      ? steps.map((step, index) => `${index + 1}. ${step}`).join("\n")
+      ? steps.map((step, index) => `**Step ${index + 1}:** ${step}`).join("\n\n")
       : t.markdown.noSteps,
     "",
-    `## ${t.markdown.expected}`,
-    report.expected.trim() || t.markdown.notProvided,
-    "",
-    `## ${t.markdown.actual}`,
+    `## ${j.actual}`,
     report.actual.trim() || t.markdown.notProvided,
     "",
-    `## ${t.markdown.evidence}`,
+    `## ${j.expected}`,
+    report.expected.trim() || t.markdown.notProvided,
+    "",
+    `## ${j.impact}`,
+    report.impact.trim() || t.markdown.notProvided,
+    "",
+    `## ${j.developerChecking}`,
+    report.developerChecking.trim() || t.markdown.notProvided,
+    "",
+    `## ${j.remark}`,
+    report.remark.trim() || t.markdown.notProvided,
+    "",
+    `## ${j.evidence}`,
     evidence.length
       ? evidence.map((item) => `- ${item.name}`).join("\n")
       : t.markdown.noEvidence,
     "",
     "---",
-    t.markdown.generated,
+    j.generated,
   ].join("\n");
 }
 
@@ -76,14 +103,19 @@ export default function Home() {
   const [notice, setNotice] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const t = COPY[language];
+  const j = JIRA_COPY[language];
 
   useEffect(() => {
     const savedLanguage = window.localStorage.getItem("testproof-language");
     if (isLanguage(savedLanguage)) {
-      setLanguage(savedLanguage);
-      document.documentElement.lang = savedLanguage;
+      const timer = window.setTimeout(() => setLanguage(savedLanguage), 0);
+      return () => window.clearTimeout(timer);
     }
   }, []);
+
+  useEffect(() => {
+    document.documentElement.lang = language;
+  }, [language]);
 
   const markdown = useMemo(
     () => createMarkdown(report, evidence, language),
@@ -91,17 +123,23 @@ export default function Home() {
   );
   const completed = [
     report.title,
-    report.environment,
+    report.description,
+    report.operatingSystem,
     report.steps,
     report.expected,
     report.actual,
   ].filter((value) => value.trim()).length;
+  const stepLines = report.steps.split("\n").map((item) => item.trim()).filter(Boolean);
+  const environmentRows: Array<[string, string]> = [
+    [j.operatingSystem, report.operatingSystem], [j.deviceModel, report.deviceModel],
+    [j.pageTested, report.pageTested], [j.languagesTested, report.languagesTested],
+    [j.browserVersion, report.browserVersion], [j.role, report.role],
+  ];
 
   function changeLanguage(nextLanguage: Language) {
     setLanguage(nextLanguage);
     setNotice("");
     window.localStorage.setItem("testproof-language", nextLanguage);
-    document.documentElement.lang = nextLanguage;
   }
 
   function updateField(field: keyof Report, value: string) {
@@ -169,7 +207,10 @@ export default function Home() {
     const link = document.createElement("a");
     const safeName = (report.title || "testproof-report")
       .trim()
-      .replace(/[<>:"/\\|?*\u0000-\u001f]+/g, "-")
+      .replace(/[<>:"/\\|?*]+/g, "-")
+      .split("")
+      .filter((character) => character.charCodeAt(0) > 31)
+      .join("")
       .replace(/\s+/g, "-")
       .replace(/^-|-$/g, "")
       .slice(0, 60);
@@ -178,6 +219,10 @@ export default function Home() {
     link.click();
     URL.revokeObjectURL(link.href);
     setNotice(t.downloaded);
+  }
+
+  function printReport() {
+    window.print();
   }
 
   function resetReport() {
@@ -249,56 +294,28 @@ export default function Home() {
               />
             </label>
 
-            <label className="field severity-field">
-              <span>{t.severity}</span>
-              <select
-                value={report.severity}
-                onChange={(event) => updateField("severity", event.target.value as Severity)}
-              >
-                {(Object.keys(t.severityLabels) as Severity[]).map((severity) => (
-                  <option key={severity} value={severity}>{t.severityLabels[severity]}</option>
-                ))}
-              </select>
-            </label>
+            <div className="form-section-title field-wide">{j.basic}</div>
+            <label className="field"><span>{j.defectType}</span><select value={report.defectType} onChange={(event) => updateField("defectType", event.target.value as DefectType)}>{(Object.keys(j.defectTypes) as DefectType[]).map((item) => <option key={item} value={item}>{j.defectTypes[item]}</option>)}</select></label>
+            <label className="field"><span>{j.identifiedEnvironment}</span><select value={report.identifiedEnvironment} onChange={(event) => updateField("identifiedEnvironment", event.target.value)}><option>DEV</option><option>SIT</option><option>UAT</option><option>PROD</option></select></label>
+            <label className="field field-wide"><span>{t.severity}</span><select value={report.severity} onChange={(event) => updateField("severity", event.target.value as Severity)}>{(Object.keys(t.severityLabels) as Severity[]).map((severity) => <option key={severity} value={severity}>{t.severityLabels[severity]}</option>)}</select></label>
 
-            <label className="field environment-field">
-              <span>{t.environment}</span>
-              <input
-                value={report.environment}
-                onChange={(event) => updateField("environment", event.target.value)}
-                placeholder={t.environmentPlaceholder}
-              />
-            </label>
+            <div className="form-section-title field-wide">{j.description}</div>
+            <label className="field field-wide"><span>{j.description}</span><textarea value={report.description} onChange={(event) => updateField("description", event.target.value)} placeholder={j.descriptionPlaceholder} rows={4} /></label>
+            <label className="field field-wide"><span>{j.preconditions}</span><textarea value={report.preconditions} onChange={(event) => updateField("preconditions", event.target.value)} placeholder={j.preconditionsPlaceholder} rows={3} /></label>
 
-            <label className="field field-wide">
-              <span>{t.steps} <em>{t.onePerLine}</em></span>
-              <textarea
-                value={report.steps}
-                onChange={(event) => updateField("steps", event.target.value)}
-                placeholder={t.stepsPlaceholder}
-                rows={5}
-              />
-            </label>
+            <div className="form-section-title field-wide">{j.environmentDetails}</div>
+            {([
+              ["operatingSystem", j.operatingSystem], ["deviceModel", j.deviceModel], ["pageTested", j.pageTested],
+              ["languagesTested", j.languagesTested], ["browserVersion", j.browserVersion], ["role", j.role],
+            ] as Array<[keyof Report, string]>).map(([field, label]) => <label className="field" key={field}><span>{label}</span><input value={report[field]} onChange={(event) => updateField(field, event.target.value)} /></label>)}
 
-            <label className="field result-field expected-field">
-              <span>{t.expected}</span>
-              <textarea
-                value={report.expected}
-                onChange={(event) => updateField("expected", event.target.value)}
-                placeholder={t.expectedPlaceholder}
-                rows={4}
-              />
-            </label>
-
-            <label className="field result-field actual-field">
-              <span>{t.actual}</span>
-              <textarea
-                value={report.actual}
-                onChange={(event) => updateField("actual", event.target.value)}
-                placeholder={t.actualPlaceholder}
-                rows={4}
-              />
-            </label>
+            <div className="form-section-title field-wide">{j.journey}</div>
+            <label className="field field-wide"><span>{t.steps} <em>{t.onePerLine}</em></span><textarea value={report.steps} onChange={(event) => updateField("steps", event.target.value)} placeholder={t.stepsPlaceholder} rows={6} /></label>
+            <label className="field result-field actual-field"><span>{j.actual}</span><textarea value={report.actual} onChange={(event) => updateField("actual", event.target.value)} placeholder={t.actualPlaceholder} rows={4} /></label>
+            <label className="field result-field expected-field"><span>{j.expected}</span><textarea value={report.expected} onChange={(event) => updateField("expected", event.target.value)} placeholder={t.expectedPlaceholder} rows={4} /></label>
+            <label className="field field-wide"><span>{j.impact}</span><textarea value={report.impact} onChange={(event) => updateField("impact", event.target.value)} placeholder={j.impactPlaceholder} rows={3} /></label>
+            <label className="field field-wide"><span>{j.developerChecking}</span><textarea value={report.developerChecking} onChange={(event) => updateField("developerChecking", event.target.value)} placeholder={j.developerPlaceholder} rows={3} /></label>
+            <label className="field field-wide"><span>{j.remark}</span><textarea value={report.remark} onChange={(event) => updateField("remark", event.target.value)} placeholder={j.remarkPlaceholder} rows={3} /></label>
           </div>
 
           <div className="evidence-heading">
@@ -353,17 +370,35 @@ export default function Home() {
             <div className="panel-heading preview-heading">
               <div>
                 <p className="step-label">{t.exportStep}</p>
-                <h2>{t.previewTitle}</h2>
+                <h2>{j.preview}</h2>
               </div>
               <span className="completion">{t.complete(completed)}</span>
             </div>
-            <div className="preview-window">
-              <div className="window-bar"><span /><span /><span /><b>bug-report.md</b></div>
-              <pre aria-label={t.previewLabel}>{markdown}</pre>
-            </div>
+            <article className="jira-report" aria-label={t.previewLabel}>
+              <div className="jira-report-topline"><span>{j.draft}</span><b>TestProof</b></div>
+              <h3>{cleanInline(report.title) || t.markdown.untitled}</h3>
+              <div className="jira-meta-grid">
+                <div><small>{j.defectType}</small><b>{j.defectTypes[report.defectType]}</b></div>
+                <div><small>{j.identifiedEnvironment}</small><b>{report.identifiedEnvironment}</b></div>
+                <div><small>{t.severity}</small><b className={`severity-pill severity-${report.severity}`}>{t.severityLabels[report.severity]}</b></div>
+              </div>
+
+              <section><h4 className="jira-heading description-heading">ⓘ {j.description}</h4><p>{report.description || j.notProvided}</p></section>
+              <section><h4 className="jira-heading environment-heading">▣ {j.environmentDetails}</h4><table><tbody>{environmentRows.map(([label, value]) => <tr key={label}><th>{label}</th><td>{value || j.notProvided}</td></tr>)}</tbody></table></section>
+              <section><h4 className="jira-heading neutral-heading">◆ {j.preconditions}</h4><p>{report.preconditions || j.notProvided}</p></section>
+              <section><h4 className="jira-heading neutral-heading">↳ {j.journey}</h4><div className="jira-steps">{stepLines.length ? stepLines.map((step, index) => <p key={`${step}-${index}`}><b>{j.step} {index + 1}:</b> {step}</p>) : <p>{t.markdown.noSteps}</p>}</div></section>
+              <section><h4 className="jira-heading actual-heading">✕ {j.actual}</h4><p>{report.actual || j.notProvided}</p></section>
+              <section><h4 className="jira-heading expected-heading">● {j.expected}</h4><p>{report.expected || j.notProvided}</p></section>
+              <section><h4 className="jira-heading neutral-heading">◈ {j.impact}</h4><p>{report.impact || j.notProvided}</p></section>
+              <section><h4 className="jira-heading neutral-heading">⌕ {j.developerChecking}</h4><p>{report.developerChecking || j.notProvided}</p></section>
+              <section><h4 className="jira-heading neutral-heading">✎ {j.remark}</h4><p>{report.remark || j.notProvided}</p></section>
+              <section><h4 className="jira-heading evidence-heading-bar">▧ {j.evidence}</h4>{evidence.length ? <div className="jira-evidence">{evidence.map((item, index) => <figure key={item.id}><img src={item.url} alt={t.evidenceAlt(index + 1, item.name)} /><figcaption>{index + 1}. {item.name}</figcaption></figure>)}</div> : <p>{j.noEvidence}</p>}</section>
+              <div className="jira-footer">{j.generated}</div>
+            </article>
             <div className="export-actions">
               <button className="primary-button" type="button" onClick={copyMarkdown}>{t.copy} <span aria-hidden="true">↗</span></button>
               <button className="secondary-button" type="button" onClick={downloadMarkdown}>{t.download}</button>
+              <button className="secondary-button print-button" type="button" onClick={printReport}>{j.printPdf}</button>
             </div>
             <button className="reset-button" type="button" onClick={resetReport}>{t.reset}</button>
             <p className="notice" aria-live="polite">{notice || t.ready}</p>

@@ -44,9 +44,12 @@ test("ships localized report generation and product metadata", async () => {
   assert.match(page, /testproof-language/);
   assert.match(page, /navigator\.clipboard/);
   assert.match(page, /URL\.createObjectURL/);
+  assert.match(page, /window\.print/);
+  assert.match(page, /jira-report/);
   assert.match(i18n, /"zh-CN"/);
   assert.match(i18n, /"zh-TW"/);
   assert.match(i18n, /Generated locally with TestProof/);
+  assert.match(i18n, /Bug identification journey/);
   assert.match(layout, /TestProof/);
   assert.match(layout, /\/og\.png/);
   assert.doesNotMatch(packageJson, /react-loading-skeleton/);
