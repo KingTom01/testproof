@@ -17,12 +17,17 @@ there is no account, upload, analytics service, or backend.
 
 Requires Node.js 22.13 or newer.
 
+On Windows, use Corepack so the repository's pinned pnpm version is used:
+
 ```bash
-pnpm install
-pnpm dev
+corepack pnpm install
+corepack pnpm dev
 ```
 
 Open `http://localhost:3000`.
+
+Do not run `npm install` in this repository. The checked-in lockfile and local
+dependency layout are managed by pnpm.
 
 ## Build and test
 
