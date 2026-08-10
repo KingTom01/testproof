@@ -7,6 +7,13 @@ into structured, developer-ready bug reports. It provides a Jira-style report
 preview, ordered evidence, Markdown export, and print-ready PDF output—without
 requiring an account or uploading report data to a server.
 
+## Live demo
+
+Try TestProof at **[testproof-qa.saturday-s-lucky.chatgpt.site](https://testproof-qa.saturday-s-lucky.chatgpt.site)**.
+
+The hosted app uses the same local-first behavior: report fields and screenshots
+remain in the current browser session and are not uploaded by TestProof.
+
 ## Why TestProof?
 
 Bug reports often miss the exact environment, reproduction journey, or expected
